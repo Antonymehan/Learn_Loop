@@ -1,0 +1,17 @@
+/* Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}

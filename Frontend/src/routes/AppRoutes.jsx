@@ -1,0 +1,1 @@
+// Define routes for all pages, protected by roles
