@@ -1,86 +1,80 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaUserEdit, FaBookOpen, FaBirthdayCake, FaPlus, FaTimes } from "react-icons/fa";
+import { FaUserEdit, FaBookOpen, FaBullseye, FaVenusMars, FaBirthdayCake } from "react-icons/fa";
 
-const LearnerProfile = () => {
-  const [formData, setFormData] = useState({ interest: "", age: "" });
-  const [skills, setSkills] = useState([]);
-  const [skillInput, setSkillInput] = useState("");
+const API_BASE = "http://localhost:5000/api/learners";
+
+const LearnerProfile = ({ onProfileUpdated }) => {
+  const [formData, setFormData] = useState({
+    areaOfInterest: "",
+    gender: "",
+    goal: "",
+    Age: "",
+  });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [profileExists, setProfileExists] = useState(false);
 
-  const storedUser = JSON.parse(localStorage.getItem("learnloopUser")); 
+  const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "null");
+  const userId = storedUser?.id || storedUser?._id;
 
+  // Fetch profile
   useEffect(() => {
-    if (storedUser) {
-      setLoading(true);
-      axios
-        .get(`http://localhost:8083/api/learner/${storedUser.user_id}`)
-        .then((res) => {
-          const learner = res.data;
+    if (!userId) return;
+
+    setLoading(true);
+    axios
+      .get(`${API_BASE}/${userId}`)
+      .then((res) => {
+        const learner = res.data;
+        if (learner) {
           setProfileExists(true);
           setFormData({
-            interest: learner.interest || "",
-            age: learner.age?.toString() || "",
+            areaOfInterest: learner.areaOfInterest || "",
+            gender: learner.gender || "",
+            goal: learner.goal || "",
+            Age: learner.Age?.toString() || storedUser.age?.toString() || "",
           });
-          setSkills(learner.skills || []);
-        })
-        .catch((err) => {
-          if (err.response && err.response.status === 404) {
-            setProfileExists(false);
-          } else {
-            console.error("Fetch error:", err);
-          }
-        })
-        .finally(() => setLoading(false));
-    }
-  }, []);
+        }
+      })
+      .catch((err) => {
+        if (err.response && err.response.status === 404) {
+          setProfileExists(false);
+          setFormData((prev) => ({ ...prev, Age: storedUser.age?.toString() || "" }));
+        } else {
+          console.error("Fetch error:", err);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [userId]);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSkillAdd = () => {
-    const trimmed = skillInput.trim();
-    if (trimmed && !skills.includes(trimmed)) {
-      setSkills((prev) => [...prev, trimmed]);
-      setSkillInput("");
-    }
-  };
-
-  const handleSkillRemove = (skillToRemove) => {
-    setSkills((prev) => prev.filter((skill) => skill !== skillToRemove));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.interest.trim() || !formData.age.trim()) {
+    const { areaOfInterest, gender, goal } = formData;
+
+    if (!areaOfInterest.trim() || !gender.trim() || !goal.trim()) {
       setStatusMessage("⚠️ Please fill all fields.");
       return;
     }
 
     setLoading(true);
-    const url = profileExists
-      ? `http://localhost:8083/api/learner/${storedUser.user_id}`
-      : "http://localhost:8083/api/learner/create";
-
-    const method = profileExists ? "put" : "post";
-    const payload = {
-      user_id: storedUser.user_id,
-      interest: formData.interest.trim(),
-      age: parseInt(formData.age),
-      skills,
-    };
+    setStatusMessage("");
 
     try {
-      await axios({ method, url, data: payload });
-      setStatusMessage("✅ Learner profile saved!");
-      setProfileExists(true);
+      if (profileExists) {
+        await axios.post(API_BASE, { user_id: userId, areaOfInterest, gender, goal });
+        setStatusMessage("✅ Profile updated successfully!");
+      } else {
+        await axios.post(API_BASE, { user_id: userId, areaOfInterest, gender, goal });
+        setStatusMessage("✅ Profile created successfully!");
+        setProfileExists(true);
+      }
+      if (onProfileUpdated) onProfileUpdated();
     } catch (err) {
       console.error("Submit error:", err);
       setStatusMessage("❌ Error saving profile.");
@@ -90,104 +84,79 @@ const LearnerProfile = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-green-300"
-    >
+    <motion.div className="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-green-300">
       <div className="flex items-center gap-3 mb-6">
         <FaUserEdit className="text-green-600 text-3xl" />
         <h2 className="text-3xl font-bold text-green-700">Your Learning Profile</h2>
       </div>
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
-        {/* Interest Field */}
         <div className="relative">
           <FaBookOpen className="absolute top-3 left-3 text-green-500" />
           <input
             type="text"
-            name="interest"
-            value={formData.interest}
+            name="areaOfInterest"
+            value={formData.areaOfInterest}
             onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition-all"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
             placeholder="e.g., Math, Art, History"
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Interested Area</label>
+          <label className="block text-sm text-gray-600 mt-1 ml-1">Area of Interest</label>
         </div>
 
-        {/* Age Field */}
         <div className="relative">
           <FaBirthdayCake className="absolute top-3 left-3 text-green-500" />
           <input
             type="number"
-            name="age"
-            value={formData.age}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 transition-all"
-            placeholder="Your age"
+            name="Age"
+            value={formData.Age}
+            disabled
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-100 rounded-lg"
           />
           <label className="block text-sm text-gray-600 mt-1 ml-1">Age</label>
         </div>
 
-        {/* Skills Input */}
-        <div className="col-span-1 md:col-span-2">
-          <label className="block font-semibold text-gray-700 mb-2">Skills</label>
-          <div className="flex gap-2 mb-3">
-            <input
-              type="text"
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSkillAdd())}
-              className="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
-              placeholder="Type a skill and press Enter"
-            />
-            <button
-              type="button"
-              onClick={handleSkillAdd}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-            >
-              <FaPlus />
-            </button>
-          </div>
-
-          {/* Skill Tags */}
-          <div className="flex flex-wrap gap-2">
-            {skills.map((skill) => (
-              <motion.div
-                key={skill}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full shadow-sm"
-              >
-                <span>{skill}</span>
-                <button
-                  type="button"
-                  onClick={() => handleSkillRemove(skill)}
-                  className="ml-2 text-green-600 hover:text-red-500"
-                >
-                  <FaTimes />
-                </button>
-              </motion.div>
-            ))}
-          </div>
+        <div className="relative">
+          <FaVenusMars className="absolute top-3 left-3 text-green-500" />
+          <select
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
+          >
+            <option value="">Select gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+          <label className="block text-sm text-gray-600 mt-1 ml-1">Gender</label>
         </div>
 
-        {/* Submit Button */}
+        <div className="relative">
+          <FaBullseye className="absolute top-3 left-3 text-green-500" />
+          <input
+            type="text"
+            name="goal"
+            value={formData.goal}
+            onChange={handleChange}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
+            placeholder="Your learning goal"
+          />
+          <label className="block text-sm text-gray-600 mt-1 ml-1">Goal</label>
+        </div>
+
         <motion.button
           type="submit"
           disabled={loading}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          className={`col-span-1 md:col-span-2 bg-gradient-to-r from-green-500 to-green-700 text-white px-6 py-3 rounded-full font-semibold mt-2 transition-all ${
+          className={`col-span-1 md:col-span-2 bg-gradient-to-r from-green-500 to-green-700 text-white px-6 py-3 rounded-full font-semibold mt-2 ${
             loading ? "opacity-50 cursor-not-allowed" : "hover:from-green-600 hover:to-green-800"
           }`}
         >
           {loading ? "Saving..." : profileExists ? "Update Profile" : "Create Profile"}
         </motion.button>
 
-        {/* Status Message */}
         <AnimatePresence>
           {statusMessage && (
             <motion.p
@@ -195,7 +164,9 @@ const LearnerProfile = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4 }}
-              className="col-span-1 md:col-span-2 text-center text-sm mt-4 text-green-700"
+              className={`col-span-1 md:col-span-2 text-center text-sm mt-4 ${
+                statusMessage.includes("❌") ? "text-red-600" : "text-green-700"
+              }`}
             >
               {statusMessage}
             </motion.p>

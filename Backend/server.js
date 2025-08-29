@@ -35,7 +35,12 @@ mongoose
 
 // ✅ Routes
 const userRoutes = require("./routes/userRoutes");
+const learnerRoutes = require("./routes/learnerRoutes");
+const tutorRoutes = require("./routes/tutorRoutes");
+
 app.use("/api/users", userRoutes);
+app.use("/api/learners", learnerRoutes);
+app.use("/api/tutors", tutorRoutes);
 
 // Root Route
 app.get("/", (req, res) => {
