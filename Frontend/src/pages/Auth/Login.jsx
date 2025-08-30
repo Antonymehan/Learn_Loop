@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import axios from "axios";
-import LoginPageVideo from "./Images/login.mp4"; // Adjust the path if necessary
+import LoginPageVideo from "./Images/login.mp4"; // Make sure path is correct
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,23 +17,23 @@ const LoginPage = () => {
 
     try {
       const response = await axios.post("http://localhost:5000/api/users/login", {
-        gmail: gmail,
-        password: password,
+        gmail,
+        password,
       });
 
-      const { user } = response.data; // backend sends { message, user }
+      const { user } = response.data;
       console.log("Login successful:", user);
 
-      // ✅ Save user info in localStorage
+      // Save user info
       localStorage.setItem("learnloopUser", JSON.stringify(user));
       localStorage.setItem("user_id", String(user.id));
-      localStorage.setItem("username", user.username || user.name); // store name
+      localStorage.setItem("username", user.name);
 
-      // ✅ Navigate based on role
+      // Navigate based on role
       if (user.role === "learner") {
-        navigate("/learner-dashboard", { state: { username: user.username || user.name } });
+        navigate("/learner-dashboard");
       } else if (user.role === "tutor") {
-        navigate("/tutor-dashboard", { state: { username: user.username || user.name } });
+        navigate("/tutor-dashboard");
       } else {
         setError("Unknown user role");
       }
@@ -45,7 +45,6 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen w-full flex">
-      {/* Left Side - Video */}
       <div className="hidden md:block w-1/2 h-full">
         <video
           src={LoginPageVideo}
@@ -57,7 +56,6 @@ const LoginPage = () => {
         />
       </div>
 
-      {/* Right Side - Login Form */}
       <div className="w-full md:w-1/2 flex items-center justify-center bg-white">
         <div className="w-full max-w-sm p-8 rounded-xl shadow-lg border border-gray-200">
           <div className="text-center mb-6">
@@ -94,11 +92,7 @@ const LoginPage = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
               >
-                {showPassword ? (
-                  <AiOutlineEyeInvisible size={20} />
-                ) : (
-                  <AiOutlineEye size={20} />
-                )}
+                {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
               </button>
             </div>
 
@@ -115,7 +109,7 @@ const LoginPage = () => {
           </form>
 
           <p className="text-center text-sm text-gray-600 mt-6">
-            New to Learn Loop?{" "}
+            New to LearnLoop?{" "}
             <Link to="/signup" className="text-green-700 font-medium hover:underline">
               Sign up here
             </Link>

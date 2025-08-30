@@ -66,7 +66,7 @@ const TutorProfile = ({ onProfileUpdated }) => {
     setStatusMessage("");
 
     try {
-      await axios.post(API_BASE, {
+      await axios.post(`${API_BASE}/create`, {
         user_id: userId,
         domain,
         workExperience,
@@ -76,6 +76,7 @@ const TutorProfile = ({ onProfileUpdated }) => {
 
       setStatusMessage(profileExists ? "✅ Profile updated!" : "✅ Profile created!");
       setProfileExists(true);
+
       if (onProfileUpdated) onProfileUpdated();
     } catch (err) {
       console.error("Submit tutor error:", err);
@@ -103,7 +104,6 @@ const TutorProfile = ({ onProfileUpdated }) => {
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
             placeholder="Domain (e.g., Math, Science)"
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Domain</label>
         </div>
 
         <div className="relative">
@@ -116,7 +116,6 @@ const TutorProfile = ({ onProfileUpdated }) => {
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
             placeholder="Professional Title (e.g., Lecturer)"
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Professional</label>
         </div>
 
         <div className="relative">
@@ -129,7 +128,6 @@ const TutorProfile = ({ onProfileUpdated }) => {
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400"
             placeholder="Work Experience (e.g., 5 years)"
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Work Experience</label>
         </div>
 
         <div className="relative">
@@ -142,7 +140,6 @@ const TutorProfile = ({ onProfileUpdated }) => {
             placeholder="Age"
             min={18}
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Age</label>
         </div>
 
         <motion.button

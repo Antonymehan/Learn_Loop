@@ -17,7 +17,7 @@ const tabs = [
 
 const TutorDashboard = () => {
   const [tab, setTab] = useState("create");
-  const storedUser = JSON.parse(localStorage.getItem("learnloopUser"));
+  const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "{}");
   const userId = storedUser?.id || storedUser?._id || storedUser?.user_id;
 
   const [tutorName, setTutorName] = useState(storedUser?.name || "Tutor");

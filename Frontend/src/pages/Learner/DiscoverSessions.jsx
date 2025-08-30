@@ -1,206 +1,162 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaSearch } from "react-icons/fa";
-import { MdTopic, MdDateRange, MdAccessTime, MdPerson, MdStar, MdList } from "react-icons/md";
+import { motion } from "framer-motion";
+import { FaUsers, FaCheck, FaHeart } from "react-icons/fa";
+
+const API_BASE = "http://localhost:5000/api/sessions";
+const LEARNER_API = "http://localhost:5000/api/learners"; // adjust if needed
 
 const DiscoverSessions = () => {
   const [sessions, setSessions] = useState([]);
-  const [registeredSessionIds, setRegisteredSessionIds] = useState([]);
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [learnerInterest, setLearnerInterest] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState("");
 
-  const storedUser = JSON.parse(localStorage.getItem("learnloopUser"));
-  const learnerId = storedUser?.user_id;
+  const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "{}");
+  const learnerId = storedUser?._id || storedUser?.id;
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const [allSessionsRes, mySessionsRes, learnerRes] = await Promise.all([
-          axios.get("http://localhost:8083/api/session/discover"),
-          axios.get(`http://localhost:8083/api/learner/${learnerId}/mysessions`),
-          axios.get(`http://localhost:8083/api/learner/${learnerId}`),
+        const [sessionsRes, learnerRes] = await Promise.all([
+          axios.get(`${API_BASE}/all`),
+          axios.get(`${LEARNER_API}/${learnerId}`),
         ]);
 
-        setSessions(allSessionsRes.data);
-        setRegisteredSessionIds(mySessionsRes.data.map((s) => s.sessionId));
-        setLearnerInterest(learnerRes.data.interest?.toLowerCase() || "");
+        setSessions(sessionsRes.data);
+        setLearnerInterest(learnerRes.data?.interest || "");
       } catch (err) {
-        console.error("Failed to fetch data:", err);
-        alert("Unable to load sessions. Please try again later.");
+        console.error("Error fetching data:", err);
+        setStatusMessage("Failed to fetch sessions or learner profile.");
       } finally {
         setLoading(false);
       }
     };
-
-    if (learnerId) {
-      fetchData();
-    }
+    fetchData();
   }, [learnerId]);
 
-  const register = async (session) => {
-    const trimmedTime = session.sessionTime.split(".")[0];
-
-    const payload = {
-      learnerId,
-      sessionId: session.sessionId,
-      sessionDate: session.sessionDate,
-      sessionTime: trimmedTime,
-    };
-
+  const toggleRegister = async (sessionId, isRegistered) => {
     try {
-      await axios.post("http://localhost:8083/api/learner/registerSession", payload);
-      alert("✅ Registered successfully!");
-      setRegisteredSessionIds((prev) => [...prev, session.sessionId]);
+      if (isRegistered) {
+        // Unregister
+        await axios.post(`${API_BASE}/unregister`, { sessionId, learnerId });
+        setSessions((prev) =>
+          prev.map((s) =>
+            s._id === sessionId
+              ? { ...s, learners: s.learners.filter((id) => id !== learnerId) }
+              : s
+          )
+        );
+        setStatusMessage("Unregistered successfully!");
+      } else {
+        // Register
+        await axios.post(`${API_BASE}/register`, { sessionId, learnerId });
+        setSessions((prev) =>
+          prev.map((s) =>
+            s._id === sessionId ? { ...s, learners: [...s.learners, learnerId] } : s
+          )
+        );
+        setStatusMessage("Registered successfully!");
+      }
     } catch (err) {
-      console.error("Registration failed:", err);
-      alert(err.response?.data || "❌ Could not register. Please try again.");
+      console.error("Failed to toggle registration:", err);
+      setStatusMessage(err.response?.data?.message || "Failed to update registration.");
     }
   };
 
-  const unregister = async (session) => {
-    const trimmedTime = session.sessionTime.split(".")[0];
+  if (loading) return <p className="text-center mt-4">Loading sessions...</p>;
+  if (sessions.length === 0)
+    return <p className="text-center mt-4">No sessions available.</p>;
 
-    const payload = {
-      learnerId,
-      sessionId: session.sessionId,
-      sessionDate: session.sessionDate,
-      sessionTime: trimmedTime,
-    };
+  // Filter sessions based on learner interest
+  const interestedSessions = learnerInterest
+    ? sessions.filter(
+        (s) =>
+          s.title?.toLowerCase().includes(learnerInterest.toLowerCase()) ||
+          s.description?.toLowerCase().includes(learnerInterest.toLowerCase())
+      )
+    : [];
 
-    try {
-      await axios.delete("http://localhost:8083/api/registration/unregister", {
-        data: payload,
-      });
-      alert("❌ Unregistered successfully.");
-      setRegisteredSessionIds((prev) =>
-        prev.filter((id) => id !== session.sessionId)
-      );
-    } catch (err) {
-      console.error("Unregistration failed:", err);
-      alert(err.response?.data || "❌ Could not unregister. Please try again.");
-    }
-  };
+  const otherSessions = sessions.filter((s) => !interestedSessions.includes(s));
 
-  const filteredSessions = sessions.filter((session) =>
-    session.topic.toLowerCase().includes(query.toLowerCase()) ||
-    (session.tutor?.user?.name || "").toLowerCase().includes(query.toLowerCase())
-  );
-
-  const interestSessions = filteredSessions.filter((session) =>
-    learnerInterest && session.topic.toLowerCase().includes(learnerInterest)
-  );
-
-  const otherSessions = filteredSessions.filter(
-    (session) => !interestSessions.includes(session)
-  );
-
-  const renderSessionCard = (s) => {
-    const isRegistered = registeredSessionIds.includes(s.sessionId);
-    const trimmedTime = s.sessionTime.split(".")[0];
+  const renderSessionCard = (session) => {
+    const isRegistered = session.learners?.includes(learnerId);
 
     return (
-      <div
-        key={s.sessionId}
-        className="bg-gradient-to-br from-gray-50 via-white to-gray-100 border border-slate-300 rounded-xl shadow-md hover:shadow-xl transition duration-300"
+      <motion.div
+        key={session._id}
+        className="border p-4 rounded shadow hover:shadow-md transition relative"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.3 }}
       >
-        <div className="p-6 space-y-4 text-sm">
-          <div className="flex items-center justify-between border-b border-gray-500 pb-2">
-            <div className="flex items-center gap-2 text-slate-700 font-semibold">
-              <MdTopic className="text-xl" />
-              <span>Topic</span>
-            </div>
-            <span className="text-slate-600">{s.topic}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-500 pb-2">
-            <div className="flex items-center gap-2 text-slate-700 font-semibold">
-              <MdDateRange className="text-xl" />
-              <span>Date</span>
-            </div>
-            <span className="text-slate-600">{s.sessionDate}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-500 pb-2">
-            <div className="flex items-center gap-2 text-slate-700 font-semibold">
-              <MdAccessTime className="text-xl" />
-              <span>Time</span>
-            </div>
-            <span className="text-slate-600">{trimmedTime}</span>
-          </div>
-          <div className="flex items-center justify-between border-b border-gray-500 pb-2">
-            <div className="flex items-center gap-2 text-slate-700 font-semibold">
-              <MdPerson className="text-xl" />
-              <span>Tutor</span>
-            </div>
-            <span className="text-slate-600">{s.tutor?.user?.name || "Unknown Tutor"}</span>
-          </div>
+        <h3 className="font-semibold text-lg mb-2">{session.title}</h3>
+        <p className="text-gray-700 mb-1">{session.description}</p>
+        <p className="text-gray-600 text-sm">
+          Date: {new Date(session.date).toLocaleDateString()} &nbsp; Time: {session.time}
+        </p>
+        {session.tutor && (
+          <p className="text-gray-600 text-sm mt-1">
+            Tutor: {session.tutor.user?.name || "Unknown"}
+          </p>
+        )}
 
-          <div className="pt-4">
-            {isRegistered ? (
-              <button
-                onClick={() => unregister(s)}
-                className="w-full bg-red-500 text-white py-2 rounded-md font-semibold hover:bg-red-600 transition duration-200"
-              >
-                Unregister
-              </button>
-            ) : (
-              <button
-                onClick={() => register(s)}
-                className="w-full bg-green-500 text-white py-2 rounded-md font-semibold hover:bg-green-600 transition duration-200"
-              >
-                Register
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+        <button
+          onClick={() => toggleRegister(session._id, isRegistered)}
+          className={`mt-3 w-full py-2 rounded-full font-semibold transition-colors ${
+            isRegistered
+              ? "bg-red-500 text-white hover:bg-red-600 flex items-center justify-center gap-2"
+              : "bg-blue-500 text-white hover:bg-blue-600"
+          }`}
+        >
+          {isRegistered ? (
+            <>
+              <FaCheck /> Unregister
+            </>
+          ) : (
+            "Register"
+          )}
+        </button>
+      </motion.div>
     );
   };
 
   return (
-    <div className="font-sans text-gray-800 px-8 md:px-20 py-12">
-      {/* 🔍 Search Bar */}
-      <div className="flex items-center gap-2 rounded-full px-4 py-2 border border-slate-300 shadow-sm max-w-md mx-auto mb-10 transition-all duration-300 focus-within:border-green-400">
-        <FaSearch className="text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search sessions..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-grow outline-none text-base text-gray-700 bg-transparent"
-        />
-      </div>
+    <div className="max-w-5xl mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <FaUsers />
+        Discover Sessions
+      </h2>
 
-      {/* 🌟 Interested Area Section */}
-      {learnerInterest && interestSessions.length > 0 && (
-        <div className="mb-16">
-          <div className="flex items-center gap-2 mb-4">
-            <MdStar className="text-yellow-500 text-2xl" />
-            <h2 className="text-2xl font-bold text-slate-800">
-              Sessions Matching Your Interest: <span className="capitalize">{learnerInterest}</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {interestSessions.map(renderSessionCard)}
-          </div>
+      {/* Interested Sessions */}
+      {learnerInterest && (
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-pink-600">
+            <FaHeart /> Your Interested Sessions ({learnerInterest})
+          </h3>
+          {interestedSessions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {interestedSessions.map(renderSessionCard)}
+            </div>
+          ) : (
+            <p className="text-gray-500">No sessions match your interest.</p>
+          )}
         </div>
       )}
 
-      {/* 📚 All Other Sessions */}
+      {/* All Sessions */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <MdList className="text-blue-500 text-2xl" />
-          <h2 className="text-2xl font-bold text-slate-800">All Other Available Sessions</h2>
+        <h3 className="text-xl font-semibold mb-4">All Available Sessions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {otherSessions.map(renderSessionCard)}
         </div>
-        {loading ? (
-          <div className="text-center text-slate-500 mt-10 text-lg">Loading sessions...</div>
-        ) : otherSessions.length === 0 ? (
-          <div className="text-center text-slate-500 mt-10 text-lg">No sessions found.</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {otherSessions.map(renderSessionCard)}
-          </div>
-        )}
       </div>
+
+      {statusMessage && (
+        <p className="text-center text-blue-700 mt-4">{statusMessage}</p>
+      )}
     </div>
   );
 };

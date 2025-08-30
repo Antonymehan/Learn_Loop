@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaUserEdit, FaBookOpen, FaBullseye, FaVenusMars, FaBirthdayCake } from "react-icons/fa";
+import { FaUserEdit, FaBookOpen, FaBirthdayCake } from "react-icons/fa";
 
 const API_BASE = "http://localhost:5000/api/learners";
 
 const LearnerProfile = ({ onProfileUpdated }) => {
   const [formData, setFormData] = useState({
-    areaOfInterest: "",
-    gender: "",
-    goal: "",
-    Age: "",
+    age: "",
+    interest: "",
   });
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -19,7 +17,7 @@ const LearnerProfile = ({ onProfileUpdated }) => {
   const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "null");
   const userId = storedUser?.id || storedUser?._id;
 
-  // Fetch profile
+  // Fetch existing profile
   useEffect(() => {
     if (!userId) return;
 
@@ -31,33 +29,31 @@ const LearnerProfile = ({ onProfileUpdated }) => {
         if (learner) {
           setProfileExists(true);
           setFormData({
-            areaOfInterest: learner.areaOfInterest || "",
-            gender: learner.gender || "",
-            goal: learner.goal || "",
-            Age: learner.Age?.toString() || storedUser.age?.toString() || "",
+            age: learner.age || storedUser.age || "",
+            interest: learner.interest || "",
           });
         }
       })
       .catch((err) => {
         if (err.response && err.response.status === 404) {
           setProfileExists(false);
-          setFormData((prev) => ({ ...prev, Age: storedUser.age?.toString() || "" }));
+          setFormData({ age: storedUser.age || "", interest: "" });
         } else {
-          console.error("Fetch error:", err);
+          console.error(err);
         }
       })
       .finally(() => setLoading(false));
   }, [userId]);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { areaOfInterest, gender, goal } = formData;
+    const { age, interest } = formData;
 
-    if (!areaOfInterest.trim() || !gender.trim() || !goal.trim()) {
+    if (!age || !interest.trim()) {
       setStatusMessage("⚠️ Please fill all fields.");
       return;
     }
@@ -67,16 +63,19 @@ const LearnerProfile = ({ onProfileUpdated }) => {
 
     try {
       if (profileExists) {
-        await axios.post(API_BASE, { user_id: userId, areaOfInterest, gender, goal });
+        // Update profile
+        await axios.put(`${API_BASE}/${userId}`, { age: Number(age), interest });
         setStatusMessage("✅ Profile updated successfully!");
       } else {
-        await axios.post(API_BASE, { user_id: userId, areaOfInterest, gender, goal });
+        // Create profile
+        await axios.post(`${API_BASE}/create`, { user_id: userId, age: Number(age), interest });
         setStatusMessage("✅ Profile created successfully!");
         setProfileExists(true);
       }
+
       if (onProfileUpdated) onProfileUpdated();
     } catch (err) {
-      console.error("Submit error:", err);
+      console.error(err);
       setStatusMessage("❌ Error saving profile.");
     } finally {
       setLoading(false);
@@ -92,57 +91,27 @@ const LearnerProfile = ({ onProfileUpdated }) => {
 
       <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleSubmit}>
         <div className="relative">
-          <FaBookOpen className="absolute top-3 left-3 text-green-500" />
-          <input
-            type="text"
-            name="areaOfInterest"
-            value={formData.areaOfInterest}
-            onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
-            placeholder="e.g., Math, Art, History"
-          />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Area of Interest</label>
-        </div>
-
-        <div className="relative">
           <FaBirthdayCake className="absolute top-3 left-3 text-green-500" />
           <input
             type="number"
-            name="Age"
-            value={formData.Age}
-            disabled
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 bg-gray-100 rounded-lg"
-          />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Age</label>
-        </div>
-
-        <div className="relative">
-          <FaVenusMars className="absolute top-3 left-3 text-green-500" />
-          <select
-            name="gender"
-            value={formData.gender}
+            name="age"
+            value={formData.age}
             onChange={handleChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
-          >
-            <option value="">Select gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Gender</label>
+            placeholder="Enter your age"
+          />
         </div>
 
         <div className="relative">
-          <FaBullseye className="absolute top-3 left-3 text-green-500" />
+          <FaBookOpen className="absolute top-3 left-3 text-green-500" />
           <input
             type="text"
-            name="goal"
-            value={formData.goal}
+            name="interest"
+            value={formData.interest}
             onChange={handleChange}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400"
-            placeholder="Your learning goal"
+            placeholder="Your area of interest"
           />
-          <label className="block text-sm text-gray-600 mt-1 ml-1">Goal</label>
         </div>
 
         <motion.button

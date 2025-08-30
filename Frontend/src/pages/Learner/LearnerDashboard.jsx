@@ -20,15 +20,13 @@ const LearnerDashboard = () => {
   const [tab, setTab] = useState("discover");
   const [userName, setUserName] = useState("Learner");
   const [learnerDetails, setLearnerDetails] = useState({
-    areaOfInterest: "",
-    Age: "",
-    gender: "",
-    goal: "",
+    age: "",
+    interest: "",
   });
   const [profileExists, setProfileExists] = useState(false);
 
   const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "{}");
-  const userId = storedUser.id || storedUser._id || storedUser.user_id;
+  const userId = storedUser.id || storedUser._id;
 
   const fetchLearnerProfile = () => {
     if (!userId) {
@@ -43,12 +41,10 @@ const LearnerDashboard = () => {
       .get(`${API_BASE}/${userId}`)
       .then((res) => {
         const learner = res.data;
-        if (learner && (learner.areaOfInterest || learner.goal)) {
+        if (learner && (learner.age || learner.interest)) {
           setLearnerDetails({
-            areaOfInterest: learner.areaOfInterest || "",
-            Age: learner.Age || storedUser.age || "",
-            gender: learner.gender || "",
-            goal: learner.goal || "",
+            age: learner.age || storedUser.age || "",
+            interest: learner.interest || "",
           });
           setProfileExists(true);
         } else {
@@ -142,20 +138,12 @@ const LearnerDashboard = () => {
             <h2 className="text-2xl font-bold text-green-700 mb-4">Your Profile</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800">
               <div>
-                <p className="font-semibold">Interested Area:</p>
-                <p>{learnerDetails.areaOfInterest}</p>
-              </div>
-              <div>
                 <p className="font-semibold">Age:</p>
-                <p>{learnerDetails.Age}</p>
+                <p>{learnerDetails.age}</p>
               </div>
               <div>
-                <p className="font-semibold">Gender:</p>
-                <p>{learnerDetails.gender}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Goal:</p>
-                <p>{learnerDetails.goal}</p>
+                <p className="font-semibold">Area of Interest:</p>
+                <p>{learnerDetails.interest}</p>
               </div>
             </div>
           </motion.div>
