@@ -10,6 +10,7 @@ const ViewSessions = () => {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(""); // "tutor" or "learner"
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusType, setStatusType] = useState("error"); // "success" | "error"
 
   const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "{}");
   const userId = storedUser?._id || storedUser?.id;
@@ -24,7 +25,9 @@ const ViewSessions = () => {
         setRole(userRole);
 
         if (userRole === "tutor") {
-          const tutorRes = await axios.get(`http://localhost:5000/api/tutors/${userId}`);
+          const tutorRes = await axios.get(
+            `http://localhost:5000/api/tutors/${userId}`
+          );
           const tutorId = tutorRes.data._id;
 
           const res = await axios.get(`${API_BASE}/tutor/${tutorId}`);
@@ -33,10 +36,12 @@ const ViewSessions = () => {
           const res = await axios.get(`${API_BASE}/all`);
           setSessions(res.data);
         } else {
+          setStatusType("error");
           setStatusMessage("Invalid user role.");
         }
       } catch (err) {
         console.error("Failed to fetch sessions:", err);
+        setStatusType("error");
         setStatusMessage("Failed to fetch sessions.");
       } finally {
         setLoading(false);
@@ -47,26 +52,42 @@ const ViewSessions = () => {
   }, [userId, userRole]);
 
   const handleDelete = async (sessionId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this session?");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this session?"
+    );
     if (!confirmDelete) return;
 
     try {
       await axios.delete(`${API_BASE}/delete/${sessionId}`);
       setSessions((prev) => prev.filter((s) => s._id !== sessionId));
+      setStatusType("success");
       setStatusMessage("Session deleted successfully.");
     } catch (err) {
       console.error("Failed to delete session:", err);
+      setStatusType("error");
       setStatusMessage("Failed to delete session.");
     }
   };
 
-  const handleStart = (sessionId) => {
-    // For demo, just show an alert. Replace with actual logic if needed.
-    alert(`Session ${sessionId} started!`);
-  };
+  const handleStart = (session) => {
+  const sessionDate = new Date(session.date);
+  const today = new Date();
+
+  if (sessionDate < today) {
+    alert("This session has already passed!");
+    return;
+  }
+
+  // Generate unique Jitsi meeting room based on sessionId
+  const roomName = `learnloop-${session._id}`;
+  const meetingUrl = `https://meet.jit.si/${roomName}`;
+
+  window.open(meetingUrl, "_blank"); // Opens meeting in a new tab
+};
 
   if (loading) return <p className="text-center mt-4">Loading sessions...</p>;
-  if (sessions.length === 0) return <p className="text-center mt-4">No sessions found.</p>;
+  if (sessions.length === 0)
+    return <p className="text-center mt-4">No sessions found.</p>;
 
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -76,49 +97,79 @@ const ViewSessions = () => {
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {sessions.map((session) => (
-          <motion.div
-            key={session._id}
-            className="border p-4 rounded shadow hover:shadow-md transition relative"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            <h3 className="font-semibold text-lg mb-2">{session.title}</h3>
-            <p className="text-gray-700 mb-1">{session.description}</p>
-            <p className="text-gray-600 text-sm">
-              Date: {new Date(session.date).toLocaleDateString()} &nbsp; Time: {session.time}
-            </p>
-            {role === "learner" && session.tutor && (
-              <p className="text-gray-600 text-sm mt-1">
-                Tutor: {session.tutor.user?.name || "Unknown"}
-              </p>
-            )}
+        {sessions.map((session) => {
+          const sessionDate = new Date(session.date);
+          const today = new Date();
+          const isPast = sessionDate < today;
 
-            {/* Start button */}
-            <button
-              onClick={() => handleStart(session._id)}
-              className="mt-3 w-full py-2 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 flex items-center justify-center gap-2"
+          return (
+            <motion.div
+              key={session._id}
+              className="border p-4 rounded-xl shadow hover:shadow-md transition relative bg-white"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
             >
-              <FaPlay /> Start
-            </button>
+              <h3 className="font-semibold text-lg mb-2">{session.title}</h3>
+              <p className="text-gray-700 mb-1">{session.description}</p>
+              <p className="text-gray-600 text-sm">
+                Date: {sessionDate.toLocaleDateString()} &nbsp; Time:{" "}
+                {session.time}
+              </p>
 
-            {/* Delete button for tutors */}
-            {role === "tutor" && (
-              <button
-                onClick={() => handleDelete(session._id)}
-                className="absolute top-2 right-2 text-red-600 hover:text-red-800"
-                title="Delete Session"
+              {role === "learner" && session.tutor && (
+                <p className="text-gray-600 text-sm mt-1">
+                  Tutor: {session.tutor.user?.name || "Unknown"}
+                </p>
+              )}
+
+              {/* Status */}
+              <p
+                className={`mt-2 text-sm font-semibold ${
+                  isPast ? "text-red-500" : "text-green-600"
+                }`}
               >
-                <FaTrash />
+                {isPast ? "Completed" : "Upcoming"}
+              </p>
+
+              {/* Start button */}
+              <button
+                onClick={() => handleStart(session)}
+                disabled={isPast}
+                className={`mt-3 w-full py-2 rounded-full font-semibold flex items-center justify-center gap-2 ${
+                  isPast
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : "bg-green-500 hover:bg-green-600 text-white"
+                }`}
+              >
+                <FaPlay /> Start
               </button>
-            )}
-          </motion.div>
-        ))}
+
+              {/* Delete button for tutors */}
+              {role === "tutor" && (
+                <button
+                  onClick={() => handleDelete(session._id)}
+                  className="absolute top-2 right-2 text-red-600 hover:text-red-800"
+                  title="Delete Session"
+                >
+                  <FaTrash />
+                </button>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
 
-      {statusMessage && <p className="text-center text-red-600 mt-4">{statusMessage}</p>}
+      {statusMessage && (
+        <p
+          className={`text-center mt-4 font-medium ${
+            statusType === "success" ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {statusMessage}
+        </p>
+      )}
     </div>
   );
 };

@@ -23,4 +23,10 @@ router.get("/learner/:learnerId", sessionController.getLearnerSessions);
 // Tutor deletes a session
 router.delete("/delete/:sessionId", sessionController.deleteSession);
 
+// ✅ Tutor starts a meeting
+router.post("/start/:id", sessionController.startMeeting);
+
+// ✅ Learner joins a meeting
+router.get("/join/:id", sessionController.joinMeeting);
+
 module.exports = router;
