@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { FaUsers, FaCheck, FaHeart } from "react-icons/fa";
+import {
+  FaUsers,
+  FaCheck,
+  FaHeart,
+  FaCalendarAlt,
+  FaClock,
+  FaChalkboardTeacher,
+  FaInfoCircle,
+} from "react-icons/fa";
 
 const API_BASE = "http://localhost:5000/api/sessions";
 const LEARNER_API = "http://localhost:5000/api/learners"; // adjust if needed
@@ -39,7 +47,6 @@ const DiscoverSessions = () => {
   const toggleRegister = async (sessionId, isRegistered) => {
     try {
       if (isRegistered) {
-        // Unregister
         await axios.post(`${API_BASE}/unregister`, { sessionId, learnerId });
         setSessions((prev) =>
           prev.map((s) =>
@@ -50,18 +57,21 @@ const DiscoverSessions = () => {
         );
         setStatusMessage("Unregistered successfully!");
       } else {
-        // Register
         await axios.post(`${API_BASE}/register`, { sessionId, learnerId });
         setSessions((prev) =>
           prev.map((s) =>
-            s._id === sessionId ? { ...s, learners: [...s.learners, learnerId] } : s
+            s._id === sessionId
+              ? { ...s, learners: [...s.learners, learnerId] }
+              : s
           )
         );
         setStatusMessage("Registered successfully!");
       }
     } catch (err) {
       console.error("Failed to toggle registration:", err);
-      setStatusMessage(err.response?.data?.message || "Failed to update registration.");
+      setStatusMessage(
+        err.response?.data?.message || "Failed to update registration."
+      );
     }
   };
 
@@ -86,42 +96,65 @@ const DiscoverSessions = () => {
     return (
       <motion.div
         key={session._id}
-        className="border p-4 rounded shadow hover:shadow-md transition relative"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.3 }}
+        className="relative bg-gradient-to-tr from-green-50 via-white to-green-100 rounded-xl p-6 flex flex-col text-left shadow-md
+                   border border-black/40 before:absolute before:inset-0 before:rounded-xl before:border-2 before:border-transparent 
+                   before:pointer-events-none hover:before:border-black hover:before:animate-[borderRun_1.5s_linear_infinite]"
       >
-        <h3 className="font-semibold text-lg mb-2">{session.title}</h3>
-        <p className="text-gray-700 mb-1">{session.description}</p>
-        <p className="text-gray-600 text-sm">
-          Date: {new Date(session.date).toLocaleDateString()} &nbsp; Time: {session.time}
-        </p>
-        {session.tutor && (
-          <p className="text-gray-600 text-sm mt-1">
-            Tutor: {session.tutor.user?.name || "Unknown"}
-          </p>
-        )}
+        {/* Card Content with z-10 to stay above before overlay */}
+        <div className="relative z-10">
+          {/* Card Header */}
+          <h3 className="font-bold text-lg text-green-800 mb-4">{session.title}</h3>
 
-        <button
-          onClick={() => toggleRegister(session._id, isRegistered)}
-          className={`mt-3 w-full py-2 rounded-full font-semibold transition-colors ${
-            isRegistered
-              ? "bg-red-500 text-white hover:bg-red-600 flex items-center justify-center gap-2"
-              : "bg-blue-500 text-white hover:bg-blue-600"
-          }`}
-        >
-          {isRegistered ? (
-            <>
-              <FaCheck /> Unregister
-            </>
-          ) : (
-            "Register"
-          )}
-        </button>
+          {/* Card Body */}
+          <div className="space-y-3 text-gray-700">
+            <div className="flex items-center gap-2 border-b-2 border-gray-400 pb-2">
+              <FaInfoCircle />
+              <span>{session.description}</span>
+            </div>
+            <div className="flex items-center gap-2 border-b-2 border-gray-400 pb-2">
+              <FaCalendarAlt />
+              <span>Date: {new Date(session.date).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center gap-2 border-b-2 border-gray-400 pb-2">
+              <FaClock />
+              <span>Time: {session.time}</span>
+            </div>
+            {session.tutor && (
+              <div className="flex items-center gap-2 border-b-2 border-gray-400 pb-2">
+                <FaChalkboardTeacher />
+                <span>Tutor: {session.tutor.user?.name || "Unknown"}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Register/Unregister Button */}
+          <div className="mt-4">
+            <button
+              onClick={() => toggleRegister(session._id, isRegistered)}
+              className={`w-full py-2 rounded-full font-semibold transition-colors ${
+                isRegistered
+                  ? "bg-red-500 text-white hover:bg-red-600 flex items-center justify-center gap-2"
+                  : "bg-green-500 text-white hover:bg-green-600"
+              }`}
+            >
+              {isRegistered ? (
+                <>
+                  <FaCheck /> Unregister
+                </>
+              ) : (
+                "Register"
+              )}
+            </button>
+          </div>
+        </div>
       </motion.div>
     );
   };
+
 
   return (
     <div className="max-w-5xl mx-auto p-4">
@@ -137,7 +170,7 @@ const DiscoverSessions = () => {
             <FaHeart /> Your Interested Sessions ({learnerInterest})
           </h3>
           {interestedSessions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {interestedSessions.map(renderSessionCard)}
             </div>
           ) : (
@@ -149,7 +182,7 @@ const DiscoverSessions = () => {
       {/* All Sessions */}
       <div>
         <h3 className="text-xl font-semibold mb-4">All Available Sessions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {otherSessions.map(renderSessionCard)}
         </div>
       </div>
@@ -162,3 +195,6 @@ const DiscoverSessions = () => {
 };
 
 export default DiscoverSessions;
+
+
+

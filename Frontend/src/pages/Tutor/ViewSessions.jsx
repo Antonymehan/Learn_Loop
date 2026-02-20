@@ -8,9 +8,9 @@ const API_BASE = "http://localhost:5000/api/sessions";
 const ViewSessions = () => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState(""); // "tutor" or "learner"
+  const [role, setRole] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
-  const [statusType, setStatusType] = useState("error"); // "success" | "error"
+  const [statusType, setStatusType] = useState("error");
 
   const storedUser = JSON.parse(localStorage.getItem("learnloopUser") || "{}");
   const userId = storedUser?._id || storedUser?.id;
@@ -69,21 +69,21 @@ const ViewSessions = () => {
     }
   };
 
+  // Start Meeting
   const handleStart = (session) => {
-  const sessionDate = new Date(session.date);
-  const today = new Date();
+    const sessionDateTime = new Date(`${session.date}T${session.time}`);
+    const now = new Date();
 
-  if (sessionDate < today) {
-    alert("This session has already passed!");
-    return;
-  }
+    if (sessionDateTime < now) {
+      alert("This session has already passed!");
+      return;
+    }
 
-  // Generate unique Jitsi meeting room based on sessionId
-  const roomName = `learnloop-${session._id}`;
-  const meetingUrl = `https://meet.jit.si/${roomName}`;
+    const roomName = `learnloop-${session._id}`;
+    const meetingUrl = `https://meet.jit.si/${roomName}`;
 
-  window.open(meetingUrl, "_blank"); // Opens meeting in a new tab
-};
+    window.open(meetingUrl, "_blank");
+  };
 
   if (loading) return <p className="text-center mt-4">Loading sessions...</p>;
   if (sessions.length === 0)
@@ -98,9 +98,10 @@ const ViewSessions = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {sessions.map((session) => {
-          const sessionDate = new Date(session.date);
-          const today = new Date();
-          const isPast = sessionDate < today;
+          // FIX: Proper date + time combination
+          const sessionDateTime = new Date(`${session.date}T${session.time}`);
+          const now = new Date();
+          const isPast = sessionDateTime < now;
 
           return (
             <motion.div
@@ -113,8 +114,9 @@ const ViewSessions = () => {
             >
               <h3 className="font-semibold text-lg mb-2">{session.title}</h3>
               <p className="text-gray-700 mb-1">{session.description}</p>
+
               <p className="text-gray-600 text-sm">
-                Date: {sessionDate.toLocaleDateString()} &nbsp; Time:{" "}
+                Date: {new Date(session.date).toLocaleDateString()} &nbsp; Time:{" "}
                 {session.time}
               </p>
 
@@ -146,7 +148,7 @@ const ViewSessions = () => {
                 <FaPlay /> Start
               </button>
 
-              {/* Delete button for tutors */}
+              {/* Delete button (Tutor only) */}
               {role === "tutor" && (
                 <button
                   onClick={() => handleDelete(session._id)}
